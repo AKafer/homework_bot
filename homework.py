@@ -4,6 +4,7 @@ import telegram
 import requests
 from dotenv import load_dotenv
 import logging
+from http import HTTPStatus
 
 load_dotenv()
 
@@ -19,7 +20,7 @@ logger.setLevel(logging.INFO)
 PRACTICUM_TOKEN = os.getenv('PRACTICUM_TOKEN')
 TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
 TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
-RETRY_TIME = 15
+RETRY_TIME = 5
 ENDPOINT = 'https://practicum.yandex.ru/api/user_api/homework_statuses/'
 HEADERS = {'Authorization': f'OAuth {PRACTICUM_TOKEN}'}
 HOMEWORK_STATUSES = {
@@ -31,53 +32,43 @@ HOMEWORK_STATUSES = {
 
 def send_message(bot, message):
     """Отправляет сообщение в Телеграм."""
-    try:
-        bot.send_message(TELEGRAM_CHAT_ID, message)
-        logging.info('Отправлено сообщение в Телеграм')
-    except Exception as error:
-        logging.error(f'Cбой при отправке сообщения в Telegram: {error}')
+    bot.send_message(TELEGRAM_CHAT_ID, message)
+    logging.info('Отправлено сообщение в Телеграм')
 
 
 def get_api_answer(current_timestamp):
     """Направляет запрос к API ЯндексПрактикума,возращает ответ."""
-    timestamp = current_timestamp
-    params = {'from_date': int(timestamp)}
-    try:
-        response = requests.get(
-            ENDPOINT,
-            headers=HEADERS,
-            params=params,
-            verify=False
-        )
-        return response
-    except Exception as error:
-        logging.error(f'Недоступность эндпоинта ЯндексПрактикум: {error}')
+    params = {'from_date': current_timestamp}
+    response = requests.get(
+        ENDPOINT,
+        headers=HEADERS,
+        params=params,
+    )
+    if response.status_code != HTTPStatus.OK:
+        raise Exception('Недоступность эндпоинта')
+    return response.json()
 
 
 def check_response(response):
     """Возвращает содержимое в ответе от ЯндексПрактикума."""
-    try:
-        return response.json().get('homeworks')
-    except Exception as error:
-        logging.error(f'Отсутсвует ключ homeworks: {error}')
+    homework = response.get('homeworks')
+    if homework is None:
+        raise Exception('API не содержит ключа homeworks')
+    if not isinstance(homework, list):
+        raise Exception('Ответ не в виде списка')
+    return homework
 
 
 def parse_status(homework):
     """Извлекает статус работы из ответа ЯндексПракутикум."""
-    try:
-        homework_name = homework.get('homework_name')
-        homework_status = homework.get('status')
-    except Exception as error:
-        logging.error(f'Отсутсвуют ключи homework_name или status: {error}')
-        return 'Ошибка: отсутсвуют ключи homework_name или status'
-    try:
-        verdict = HOMEWORK_STATUSES.get(homework_status)
-        return f'Изменился статус проверки работы "{homework_name}". {verdict}'
-    except Exception as error:
-        logging.error(
-            f'Недокументированный статус домашней работы,\
-             обнаруженный в ответе: {error}'
-        )
+    homework_name = homework.get('homework_name')
+    homework_status = homework.get('status')
+    if homework_status is None or homework_name is None:
+        raise Exception('Отсутсвуют ключи homework_name или status')
+    verdict = HOMEWORK_STATUSES.get(homework_status)
+    if verdict is None:
+        raise Exception('Статус не обнаружен')
+    return f'Изменился статус проверки работы "{homework_name}". {verdict}'
 
 
 def check_tokens():
@@ -94,23 +85,22 @@ def main():
     """Основная логика работы бота."""
     if not check_tokens():
         logging.critical('Не обнаружены все необходимые ключи!')
-        return 'Конец'
+        raise Exception('Не обнаружены все необходимые ключи!')
     bot = telegram.Bot(token=TELEGRAM_TOKEN)
-    current_timestamp = 1645026685
+    current_timestamp = int(time.time())
     while True:
         try:
             response = get_api_answer(current_timestamp)
+            print(response)
             homeworks = check_response(response)
             if homeworks:
                 message = parse_status(homeworks[0])
-                print(message)
                 send_message(bot, message)
-            current_timestamp += 5  # int(time.time())
+            current_timestamp = int(time.time())
             time.sleep(RETRY_TIME)
         except Exception as error:
             message = f'Сбой в работе программы: {error}'
             logging.error(message)
-            current_timestamp += 5
             time.sleep(RETRY_TIME)
 
 
