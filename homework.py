@@ -20,13 +20,13 @@ logger.setLevel(logging.INFO)
 PRACTICUM_TOKEN = os.getenv('PRACTICUM_TOKEN')
 TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
 TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
-RETRY_TIME = 5
+RETRY_TIME = 600
 ENDPOINT = 'https://practicum.yandex.ru/api/user_api/homework_statuses/'
 HEADERS = {'Authorization': f'OAuth {PRACTICUM_TOKEN}'}
 HOMEWORK_STATUSES = {
     'approved': 'Работа проверена: ревьюеру всё понравилось. Ура!',
     'reviewing': 'Работа взята на проверку ревьюером.',
-    'rejected': 'Работа проверена: у ревьюера есть замечания.'
+    'rejected': 'Работа проверена: у ревьюера есть замечания.',
 }
 
 
@@ -51,6 +51,8 @@ def get_api_answer(current_timestamp):
 
 def check_response(response):
     """Возвращает содержимое в ответе от ЯндексПрактикума."""
+    if isinstance(response, list):
+        response = response[0]
     homework = response.get('homeworks')
     if homework is None:
         raise Exception('API не содержит ключа homeworks')
@@ -69,7 +71,7 @@ def parse_status(homework):
     if verdict is None:
         raise Exception('Статус не обнаружен')
     return f'Изменился статус проверки работы "{homework_name}". {verdict}'
-
+   
 
 def check_tokens():
     """Проверяет наличие токенов."""
@@ -101,6 +103,7 @@ def main():
         except Exception as error:
             message = f'Сбой в работе программы: {error}'
             logging.error(message)
+            send_message(bot, message)
             time.sleep(RETRY_TIME)
 
 
