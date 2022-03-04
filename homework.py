@@ -49,7 +49,7 @@ def get_api_answer(current_timestamp):
         if response.status_code != HTTPStatus.OK:
             raise Exception('Недоступность эндпоинта')
         return response.json()
-    except:
+    except ConnectionError:
         raise ConnectionError('Сбой при запросе к эндпоинту')
 
 
