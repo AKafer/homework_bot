@@ -28,6 +28,7 @@ HOMEWORK_STATUSES = {
     'reviewing': 'Работа взята на проверку ревьюером.',
     'rejected': 'Работа проверена: у ревьюера есть замечания.',
 }
+LIST_ERROR = []
 
 
 def send_message(bot, message):
@@ -39,19 +40,22 @@ def send_message(bot, message):
 def get_api_answer(current_timestamp):
     """Направляет запрос к API ЯндексПрактикума,возращает ответ."""
     params = {'from_date': current_timestamp}
-    response = requests.get(
-        ENDPOINT,
-        headers=HEADERS,
-        params=params,
-    )
-    if response.status_code != HTTPStatus.OK:
-        raise Exception('Недоступность эндпоинта')
-    return response.json()
+    try:
+        response = requests.get(
+            ENDPOINT,
+            headers=HEADERS,
+            params=params,
+        )
+        if response.status_code != HTTPStatus.OK:
+            raise Exception('Недоступность эндпоинта')
+        return response.json()
+    except:
+        raise ConnectionError('Сбой при запросе к эндпоинту')
 
 
 def check_response(response):
     """Возвращает содержимое в ответе от ЯндексПрактикума."""
-    if isinstance(response, list):
+    if isinstance(response, list):  # без этой проверки не проходят тесты
         response = response[0]
     homework = response.get('homeworks')
     if homework is None:
@@ -64,14 +68,16 @@ def check_response(response):
 def parse_status(homework):
     """Извлекает статус работы из ответа ЯндексПракутикум."""
     homework_name = homework.get('homework_name')
+    if homework_name is None:
+        raise KeyError('Нет ключа homework_name')
     homework_status = homework.get('status')
-    if homework_status is None or homework_name is None:
-        raise Exception('Отсутсвуют ключи homework_name или status')
+    if homework_status is None:
+        raise KeyError('Нет ключа homework_status')
     verdict = HOMEWORK_STATUSES.get(homework_status)
     if verdict is None:
-        raise Exception('Статус не обнаружен')
+        raise KeyError('Неизвестный статус')
     return f'Изменился статус проверки работы "{homework_name}". {verdict}'
-   
+
 
 def check_tokens():
     """Проверяет наличие токенов."""
@@ -103,7 +109,10 @@ def main():
         except Exception as error:
             message = f'Сбой в работе программы: {error}'
             logging.error(message)
-            send_message(bot, message)
+            if error not in LIST_ERROR:
+                LIST_ERROR.append(error)
+                send_message(bot, message)
+            current_timestamp = int(time.time())
             time.sleep(RETRY_TIME)
 
 
