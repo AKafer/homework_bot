@@ -29,6 +29,7 @@ HOMEWORK_STATUSES = {
     'rejected': 'Работа проверена: у ревьюера есть замечания.',
 }
 LIST_ERROR = []
+print('Приложение запущено')
 
 
 def send_message(bot, message):
