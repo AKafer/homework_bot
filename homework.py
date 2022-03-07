@@ -1,6 +1,6 @@
-import os  # на ГтиХабе у меня лежит файл Procfile - не папка
-import time  # знаю почему на Яндексе появляется папка
-import requests  # на Heroku bot работает
+import os
+import time
+import requests
 import sys
 
 import telegram
@@ -24,11 +24,11 @@ HOMEWORK_STATUSES = {
     'reviewing': 'Работа взята на проверку ревьюером.',
     'rejected': 'Работа проверена: у ревьюера есть замечания.',
 }
-ERROR_MEMORY = None
 
 
 def send_message(bot, message):
     """Отправляет сообщение в Телеграм."""
+    logging.info('Отправляю сообщение в Телеграм')
     bot.send_message(TELEGRAM_CHAT_ID, message)
     logging.info('Отправлено сообщение в Телеграм')
 
@@ -87,6 +87,15 @@ def parse_status(homework):
     return f'Изменился статус проверки работы "{homework_name}". {verdict}'
 
 
+def parse_date(homework):
+    """Извлекает дату обновления работы из ответа ЯндексПракутикум."""
+    date_updated = homework.get('date_updated')
+    if date_updated is None:
+        logging.error('В ответе API нет ключа date_updated')
+        raise KeyError('В ответе API нет ключа date_updated')
+    return date_updated
+
+
 def check_tokens():
     """Проверяет наличие токенов."""
     flag = all([
@@ -99,7 +108,8 @@ def check_tokens():
 
 def main():
     """Основная логика работы бота."""
-    global ERROR_MEMORY
+    DATE_API_MEMORY = None
+    ERROR_MEMORY = None
     logging.basicConfig(
         level=logging.INFO,
         format=(
@@ -125,13 +135,17 @@ def main():
         try:
             response = get_api_answer(current_timestamp)
             homeworks = check_response(response)
+            flag_message = 'Статус работы не изменился'
             if homeworks:
-                logging.info('Статус изменился!!!!!!!!!!!!')
                 message = parse_status(homeworks[0])
-                send_message(bot, message)
-            else:
-                logging.info('Статус не изменился')
+                date_updated = parse_date(homeworks[0])
+                if str(date_updated) != str(DATE_API_MEMORY):
+                    DATE_API_MEMORY = date_updated
+                    flag_message = 'Статус работы изменился!!!!!!!!!!!!'
+                    send_message(bot, message)
+            logging.info(flag_message)
             current_timestamp = int(time.time())
+            ERROR_MEMORY = None
         except Exception as error:
             message = f'Сбой в работе программы: {error}'
             logging.error(message)
