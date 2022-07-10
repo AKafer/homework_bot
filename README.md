@@ -21,15 +21,15 @@
 ### Клонировать репозиторий и перейти в него в командной строке:
 
 ```
-git git@github.com:AKafer/homework_bot.git
+git clone https://github.com/AKafer/homework_bot.git
 cd homework_bot
 ```
 
 ### Создать и активировать виртуальное окружение:
 
 ```
-python3 -m venv venv
-source venv/bin/activate
+python -m venv venv
+source venv/Scripts/activate
 ```
 
 ### Установить зависимости из файла requirements.txt:
@@ -41,7 +41,7 @@ pip install -r requirements.txt
 ### Запустить проект:
 
 ```
-python3 homework.py
+python homework.py
 ```
 
 ## Реализация на бесплатном хостинге
