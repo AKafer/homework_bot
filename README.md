@@ -38,6 +38,15 @@ source venv/Scripts/activate
 pip install -r requirements.txt
 ```
 
+### Создать папку .env со следующим содержимым:
+
+```
+PRACTICUM_TOKEN=
+TELEGRAM_TOKEN=
+TELEGRAM_CHAT_ID=
+```
+где PRACTICUM_TOKEN - токен для подключения к эндпойнту Яндекс.Практикума, TELEGRAM_TOKEN - токен управления ботом, TELEGRAM_CHAT_ID - токен для подключения к вашему чату
+
 ### Запустить проект:
 
 ```
